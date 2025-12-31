@@ -1,0 +1,13 @@
+# Local test logs
+*.log
+*.tmp
+/logs/
+
+# Secrets and Keys
+.env
+secret_key.txt
+*.pem
+
+# Python overhead
+__pycache__/
+*.py[cod]
