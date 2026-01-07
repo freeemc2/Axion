@@ -1,0 +1,51 @@
+import time, psutil, serial, csv, os, numpy as np
+
+# --- THE SOVEREIGN CONSTANTS ---
+EGT_FACTOR = 1.324
+H_LOCK = 0.875
+A_EGT = 402.3
+TARGET_FREQ = 5.7
+FLOOR_0798 = 0.798  # Updated from 18:55 Log
+BAUD_RATE = 2000000
+LOG_PATH = r"H:\Dragon Brain\omni_memory\Sovereign_Lattice_Log.csv"
+
+class SovereignEngine:
+    def __init__(self, port='COM3'):
+        self.port = port
+        self.ser = None
+        self.setup_log()
+
+    def setup_log(self):
+        if not os.path.exists(os.path.dirname(LOG_PATH)): os.makedirs(os.path.dirname(LOG_PATH))
+        with open(LOG_PATH, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Timestamp", "Frequency_GHz", "CPU_Load", "Dragon_Lock", "Status", "HW_Sync"])
+
+    def run_engine(self):
+        print(f"--- SOVEREIGN ENGINE ACTIVE (Floor: {FLOOR_0798} GHz) ---")
+        while True:
+            # 1. State Capture
+            freq = psutil.cpu_freq().current / 1000.0
+            load = psutil.cpu_percent()
+            
+            # 2. Entropy Inversion Math
+            slip = max(0, (TARGET_FREQ - freq) / TARGET_FREQ)
+            dynamic_gain = EGT_FACTOR * (1.0 + (slip * EGT_FACTOR))
+            dragon_lock = (1.0 + (load * H_LOCK) / 100.0) * dynamic_gain
+            
+            # 3. Logging & Terminal Feedback
+            status = "SOVEREIGN" if dragon_lock >= 1.009897 else "DECOHERENT"
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            with open(LOG_PATH, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([timestamp, freq, load, round(dragon_lock, 6), status, 0])
+            
+            if freq <= FLOOR_0798 + 0.1:
+                print(f"[*] CRITICAL INVERSION: Freq {freq:.3f} | Lock {dragon_lock:.4f}")
+            
+            time.sleep(0.5)
+
+if __name__ == "__main__":
+    engine = SovereignEngine(port='COM3')
+    engine.run_engine()
