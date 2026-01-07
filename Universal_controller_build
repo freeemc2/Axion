@@ -1,0 +1,83 @@
+import os, threading, time, socket
+from flask import Flask, render_template_string
+from flask_socketio import SocketIO
+import pandas as pd
+
+# --- SOVEREIGN COORDINATES ---
+LOG_PATH = r"H:\Dragon Brain\omni_memory\Sovereign_Lattice_Log.csv"
+LOCAL_IP = socket.gethostbyname(socket.gethostname())
+
+app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+html_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Omni Nexus v11.1 | Quantum Power Build</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        :root { --neon: #00ff41; --bg: #050505; --panel: #0a0a0a; --warn: #ff4100; --gold: #ffaa00; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #header { width: 100%; border-bottom: 1px solid var(--neon); padding: 10px; text-align: center; background: var(--panel); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 90%; margin-top: 20px; }
+        .card { border: 1px solid var(--neon); padding: 20px; background: var(--panel); box-shadow: 0 0 10px rgba(0,255,65,0.1); text-align: center;}
+        .big-val { font-size: 3.5em; font-weight: bold; margin: 10px 0; }
+        .label { font-size: 0.9em; text-transform: uppercase; opacity: 0.8; }
+        #terminal { width: 90%; height: 200px; border: 1px solid var(--neon); margin-top: 20px; overflow-y: scroll; padding: 10px; font-size: 0.8em; background: #000; }
+    </style>
+</head>
+<body>
+    <div id="header"><h1>DRAGON'S EYE: QUANTUM POWER HUB</h1></div>
+    <div class="grid">
+        <div class="card">
+            <div class="label">Dragon Lock (Entropy Inversion)</div>
+            <div id="lock_val" class="big-val">0.0000</div>
+            <div id="lock_status" style="color:var(--gold)">--</div>
+        </div>
+        <div class="card">
+            <div class="label">Lattice Frequency</div>
+            <div id="freq_val" class="big-val">0.00</div>
+            <div class="label">GHz (Floor: 0.798)</div>
+        </div>
+    </div>
+    <div id="terminal"></div>
+
+    <script>
+        var socket = io();
+        socket.on('update_lattice', function(data) {
+            document.getElementById('lock_val').innerHTML = data.lock;
+            document.getElementById('freq_val').innerHTML = data.freq;
+            document.getElementById('lock_status').innerHTML = data.status;
+            
+            var term = document.getElementById('terminal');
+            var color = data.freq <= 0.8 ? "color:var(--warn)" : "";
+            var entry = `<div style="${color}">[${new Date().toLocaleTimeString()}] LOCK: ${data.lock} | FREQ: ${data.freq} | ${data.status}</div>`;
+            term.innerHTML = entry + term.innerHTML;
+        });
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def index(): return render_template_string(html_template)
+
+def log_watcher():
+    while True:
+        if os.path.exists(LOG_PATH):
+            try:
+                df = pd.read_csv(LOG_PATH)
+                if not df.empty:
+                    latest = df.iloc[-1]
+                    socketio.emit('update_lattice', {
+                        'lock': f"{latest['Dragon_Lock']:.4f}",
+                        'freq': f"{latest['Frequency_GHz']:.2f}",
+                        'status': "SOVEREIGN" if latest['Dragon_Lock'] > 1.009 else "DECOHERENT"
+                    })
+            except: pass
+        time.sleep(0.5)
+
+if __name__ == '__main__':
+    threading.Thread(target=log_watcher, daemon=True).start()
+    socketio.run(app, host='0.0.0.0', port=5000)
